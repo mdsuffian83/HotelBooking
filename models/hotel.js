@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 const { ObjectId } = mongoose.Schema;
@@ -7,11 +7,11 @@ const hotelSchema = new Schema(
   {
     title: {
       type: String,
-      required: "Title is required",
+      required: 'Title is required',
     },
     content: {
       type: String,
-      required: "Content is required",
+      required: 'Content is required',
       maxlength: 10000,
     },
     location: {
@@ -19,12 +19,12 @@ const hotelSchema = new Schema(
     },
     price: {
       type: Number,
-      required: "Price is required",
+      required: 'Price is required',
       trim: true,
     },
     postedBy: {
       type: ObjectId,
-      ref: "User",
+      ref: 'User',
     },
     image: {
       data: Buffer,
@@ -39,8 +39,11 @@ const hotelSchema = new Schema(
     bed: {
       type: Number,
     },
+
+    lat: { type: Number },
+    lng: { type: Number },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Hotel", hotelSchema);
+export default mongoose.model('Hotel', hotelSchema);
