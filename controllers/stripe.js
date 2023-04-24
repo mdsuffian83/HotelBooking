@@ -1,6 +1,7 @@
 import User from '../models/user.js';
 import Stripe from 'stripe';
 import queryString from 'query-string';
+import hotel from '../models/hotel.js';
 
 const stripe = Stripe(process.env.STRIPE_SECRET);
 
@@ -92,9 +93,53 @@ export const payoutSetting = async (req, res) => {
         redirect_url: process.env.STRIPE_SETTING_REDIRECT_URL,
       }
     );
-    console.log("LOGIN LINK FOR PAYOUT SETTING", loginLink);
+    // console.log("LOGIN LINK FOR PAYOUT SETTING", loginLink);
     res.json(loginLink);
   } catch (err) {
     console.log('STRIPE PAYOUT SETTING ERR ', err);
   }
+};
+
+export const stripeSessionId = async (req, res) => {
+  // console.log("you hit stripe session id", req.body.hotelId);
+  // 1st get hotel id from req.body
+  const { hotelId } = req.body;
+  // 2nd find the hotel based on hotelId from db
+  const item = await hotel.findById(hotelId).populate('postedBy').exec();
+  // 3rd 20% charge as application fee
+  const fee = (item.price * 20) / 100;
+  // 4th create a session
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    // 5th purchasing item details, it will be shown to user on checkout
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.title,
+          },
+          unit_amount: item.price * 100,
+        },
+        quantity: 1,
+      },
+    ],
+    // 6th create payment intent with application fee and destination charge 80%
+    payment_intent_data: {
+      application_fee_amount: fee * 100,
+      // this seller can see balance in our frontend dashboard
+      transfer_data: {
+        destination: item.postedBy.stripe_account_id,
+      },
+    },
+    // success and cancel URLs
+    success_url: process.env.STRIPE_SUCCESS_URL,
+    cancel_url: process.env.STRIPE_CANCEL_URL,
+  });
+  // 7th add this session object to user in the DB
+  await User.findByIdAndUpdate(req.user._id, { stripeSession: session }).exec();
+  //  8th send session id as response to frontend
+  res.send({
+    sessionId: session.id,
+  });
 };
