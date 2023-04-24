@@ -102,43 +102,45 @@ export const payoutSetting = async (req, res) => {
 
 export const stripeSessionId = async (req, res) => {
   // console.log("you hit stripe session id", req.body.hotelId);
-  // 1st get hotel id from req.body
+  // 1 get hotel id from req.body
   const { hotelId } = req.body;
-  // 2nd find the hotel based on hotelId from db
+  // 2 find the hotel based on hotel id from db
   const item = await hotel.findById(hotelId).populate('postedBy').exec();
-  // 3rd 20% charge as application fee
+  // 3 20% charge as application fee
   const fee = (item.price * 20) / 100;
-  // 4th create a session
+  // 4 create a session
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
-    // 5th purchasing item details, it will be shown to user on checkout
+    // 5 purchasing item details, it will be shown to user on checkout
     line_items: [
       {
         price_data: {
+          unit_amount: item.price * 100, // in cents
           currency: 'usd',
           product_data: {
             name: item.title,
           },
-          unit_amount: item.price * 100,
         },
         quantity: 1,
       },
     ],
-    // 6th create payment intent with application fee and destination charge 80%
+    // 6 create payment intent with application fee and destination charge 80%
     payment_intent_data: {
       application_fee_amount: fee * 100,
-      // this seller can see balance in our frontend dashboard
+      // this seller can see his balance in our frontend dashboard
       transfer_data: {
         destination: item.postedBy.stripe_account_id,
       },
     },
-    // success and cancel URLs
+    // success and cancel urls
+    mode: 'payment',
     success_url: process.env.STRIPE_SUCCESS_URL,
     cancel_url: process.env.STRIPE_CANCEL_URL,
   });
-  // 7th add this session object to user in the DB
+
+  // 7 add this session object to user in the db
   await User.findByIdAndUpdate(req.user._id, { stripeSession: session }).exec();
-  //  8th send session id as response to frontend
+  // 8 send session id as resposne to frontend
   res.send({
     sessionId: session.id,
   });
